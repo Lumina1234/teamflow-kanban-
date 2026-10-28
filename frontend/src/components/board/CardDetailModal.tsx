@@ -152,13 +152,15 @@ export function CardDetailModal({ card: initialCard, projectId, isOwner = false,
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => window.confirm('Delete this card?') && deleteMutation.mutate()}
-              className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-              title="Delete card"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            {isOwner && (
+              <button
+                onClick={() => window.confirm('Delete this card?') && deleteMutation.mutate()}
+                className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                title="Delete card (Owner only)"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
               <X className="h-4 w-4" />
             </button>

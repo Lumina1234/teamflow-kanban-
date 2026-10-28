@@ -1,4 +1,4 @@
-import { format, isBefore, parseISO, isValid } from 'date-fns'
+import { format, isBefore, parseISO, isValid, formatDistanceToNow } from 'date-fns'
 
 export function formatDate(dateStr: string): string {
   try {
@@ -15,6 +15,16 @@ export function formatDateShort(dateStr: string): string {
     const d = parseISO(dateStr)
     if (!isValid(d)) return dateStr
     return format(d, 'MMM d')
+  } catch {
+    return dateStr
+  }
+}
+
+export function formatTimeAgo(dateStr: string): string {
+  try {
+    const d = parseISO(dateStr)
+    if (!isValid(d)) return dateStr
+    return formatDistanceToNow(d, { addSuffix: true })
   } catch {
     return dateStr
   }

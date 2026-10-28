@@ -2,10 +2,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { projectsApi } from '../api/projects'
+import { membersApi } from '../api/members'
 import { useBoard } from '../hooks/useBoard'
 import { useFilters } from '../hooks/useFilters'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuth } from '../hooks/useAuth'
+import { isOverdue } from '../utils/dates'
 import {
   Folder,
   Calendar,
@@ -13,23 +15,27 @@ import {
   Star,
   Search,
   Filter,
-  Users,
   Activity,
-  MoreHorizontal,
   LogOut,
+  LayoutGrid,
+  CheckCircle2,
+  Clock,
+  PieChart,
+  Bell,
 } from 'lucide-react'
 import { KanbanBoard } from '../components/board/KanbanBoard'
 import { BoardFilters } from '../components/board/BoardFilters'
+import { RightSideWidgets } from '../components/board/RightSideWidgets'
 import { MembersPanel } from '../components/board/MembersPanel'
 import { ActivityPanel } from '../components/board/ActivityPanel'
 
-type Panel = 'members' | 'activity' | null
+type OverlayPanel = 'full_members' | 'full_activity' | null
 
 export default function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const [activePanel, setActivePanel] = useState<Panel>('members') // default open as shown in user's mockup
+  const [overlayPanel, setOverlayPanel] = useState<OverlayPanel>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isStarred, setIsStarred] = useState(false)
@@ -42,6 +48,12 @@ export default function BoardPage() {
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectsApi.get(projectId!),
+    enabled: !!projectId,
+  })
+
+  const { data: members = [] } = useQuery({
+    queryKey: ['members', projectId],
+    queryFn: () => membersApi.list(projectId!),
     enabled: !!projectId,
   })
 
@@ -73,14 +85,25 @@ export default function BoardPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [moreMenuOpen])
 
-  const togglePanel = (panel: Panel) => {
-    setActivePanel(p => (p === panel ? null : panel))
-  }
-
   const isOwner = project?.my_role === 'owner'
   const userInitials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'DE'
+
+  // ── Metrics calculations ──────────────────────────────────────────────
+  const allCards = Object.values(board.cardsByColumn).flat()
+  const totalTasks = allCards.length
+  const completedColumnIds = new Set(
+    board.columns
+      .filter(c => c.is_completed || c.name.toLowerCase().includes('done'))
+      .map(c => c.id)
+  )
+  const completedTasks = allCards.filter(c => completedColumnIds.has(c.column_id)).length
+  const overdueTasks = allCards.filter(
+    c => c.due_date && isOverdue(c.due_date) && !completedColumnIds.has(c.column_id)
+  ).length
+  const remainingTasks = totalTasks - completedTasks
+  const percentComplete = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
   return (
     <div className="h-screen flex bg-[#F8FAFC] overflow-hidden select-none">
@@ -109,7 +132,7 @@ export default function BoardPage() {
               <span className="text-[10px] font-bold text-blue-600">Board</span>
             </button>
 
-            {/* Projects */}
+            {/* Projects (For owners or project switches) */}
             <button
               onClick={() => navigate('/dashboard')}
               className="flex flex-col items-center gap-1 py-2 px-1 w-full rounded-2xl text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
@@ -183,8 +206,14 @@ export default function BoardPage() {
               </div>
 
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="bg-blue-50 text-blue-600 border border-blue-200 text-[10px] font-bold px-2 py-0.2 rounded-full">
-                  {isOwner ? 'Owner' : 'Member'}
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    isOwner
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                      : 'bg-[#0284c7] text-white'
+                  }`}
+                >
+                  {isOwner ? '👑 Owner' : 'Member'}
                 </span>
                 <p className="text-xs text-gray-400 truncate">
                   {project?.description ?? 'A small team project to manage and track work'}
@@ -231,24 +260,31 @@ export default function BoardPage() {
               )}
             </button>
 
-            {/* Members Button */}
+            {/* Members Button with overlapping avatars */}
             <button
-              onClick={() => togglePanel('members')}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl border transition-all ${
-                activePanel === 'members'
+              onClick={() => setOverlayPanel(p => (p === 'full_members' ? null : 'full_members'))}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
+                overlayPanel === 'full_members'
                   ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-2xs'
                   : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
               }`}
             >
-              <Users className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Members</span>
+              <div className="flex -space-x-1.5 overflow-hidden">
+                <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 font-bold text-[9px] flex items-center justify-center ring-2 ring-white">
+                  DE
+                </div>
+                <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 font-bold text-[9px] flex items-center justify-center ring-2 ring-white">
+                  DE
+                </div>
+              </div>
+              <span className="ml-1 hidden sm:inline">Members</span>
             </button>
 
             {/* Activity Button */}
             <button
-              onClick={() => togglePanel('activity')}
+              onClick={() => setOverlayPanel(p => (p === 'full_activity' ? null : 'full_activity'))}
               className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl border transition-all ${
-                activePanel === 'activity'
+                overlayPanel === 'full_activity'
                   ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-2xs'
                   : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
               }`}
@@ -257,41 +293,86 @@ export default function BoardPage() {
               <span className="hidden sm:inline">Activity</span>
             </button>
 
-            {/* More Options (...) */}
-            <div className="relative" ref={moreMenuRef}>
-              <button
-                onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-                className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
-                title="More options"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </button>
+            {/* Notification Bell */}
+            <button
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+              title="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
 
-              {moreMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-30 text-xs">
-                  <div className="px-3 py-2 border-b border-gray-100">
-                    <p className="font-bold text-gray-900 truncate">{user?.name ?? 'Demo Owner'}</p>
-                    <p className="text-[11px] text-gray-400 truncate">{user?.email}</p>
-                  </div>
-                  <button
-                    onClick={() => { setMoreMenuOpen(false); navigate('/dashboard') }}
-                    className="w-full px-3 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <Folder className="h-3.5 w-3.5 text-gray-400" />
-                    All Projects
-                  </button>
-                  <button
-                    onClick={() => { setMoreMenuOpen(false); logout() }}
-                    className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
-                  >
-                    <LogOut className="h-3.5 w-3.5 text-red-500" />
-                    Sign Out
-                  </button>
-                </div>
-              )}
+            {/* User Avatar Circle */}
+            <div
+              onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+              className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center cursor-pointer ring-2 ring-blue-100"
+              title={user?.name ?? 'Account'}
+            >
+              {userInitials}
             </div>
+
+            {/* More Menu Dropdown */}
+            {moreMenuOpen && (
+              <div
+                ref={moreMenuRef}
+                className="absolute right-6 top-16 mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-30 text-xs"
+              >
+                <div className="px-3 py-2 border-b border-gray-100">
+                  <p className="font-bold text-gray-900 truncate">{user?.name ?? 'Demo Member'}</p>
+                  <p className="text-[11px] text-gray-400 truncate">{user?.email}</p>
+                </div>
+                <button
+                  onClick={() => { setMoreMenuOpen(false); navigate('/dashboard') }}
+                  className="w-full px-3 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Folder className="h-3.5 w-3.5 text-gray-400" />
+                  All Projects
+                </button>
+                <button
+                  onClick={() => { setMoreMenuOpen(false); logout() }}
+                  className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                >
+                  <LogOut className="h-3.5 w-3.5 text-red-500" />
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </header>
+
+        {/* ── Stats / Metrics Bar ───────────────────────────────────────── */}
+        <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between text-xs shrink-0 overflow-x-auto">
+          <div className="flex items-center gap-6 shrink-0">
+            <div className="flex items-center gap-2 text-gray-700 font-semibold">
+              <LayoutGrid className="h-4 w-4 text-blue-600" />
+              <span className="font-bold text-gray-900">{totalTasks}</span> Total tasks
+            </div>
+            <div className="flex items-center gap-2 text-gray-700 font-semibold">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span className="font-bold text-gray-900">{completedTasks}</span> Completed
+            </div>
+            <div className="flex items-center gap-2 text-gray-700 font-semibold">
+              <Clock className="h-4 w-4 text-red-500" />
+              <span className="font-bold text-gray-900">{overdueTasks}</span> Overdue
+            </div>
+            <div className="flex items-center gap-2 text-gray-700 font-semibold">
+              <PieChart className="h-4 w-4 text-blue-500" />
+              <span className="font-bold text-gray-900">{remainingTasks}</span> Remaining
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="flex items-center gap-3 w-56 md:w-64 shrink-0 ml-4">
+            <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${percentComplete}%` }}
+              />
+            </div>
+            <span className="text-xs font-semibold text-gray-500 shrink-0">
+              {percentComplete}% complete
+            </span>
+          </div>
+        </div>
 
         {/* Board Filters Bar (Collapsible) */}
         {showFilters && projectId && (
@@ -305,7 +386,7 @@ export default function BoardPage() {
           />
         )}
 
-        {/* Board Canvas & Right Panels */}
+        {/* ── Main Canvas: Board + Right Side Panels ───────────────────── */}
         <div className="flex flex-1 overflow-hidden">
           {/* Main Kanban Board */}
           <main className="flex-1 overflow-x-auto bg-[#F8FAFC]">
@@ -315,24 +396,38 @@ export default function BoardPage() {
                 board={board}
                 isOwner={isOwner}
                 searchQuery={searchQuery}
+                members={members}
               />
             )}
           </main>
 
-          {/* Right Sliding Panels */}
-          {activePanel && projectId && (
-            <aside className="w-80 shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-hidden shadow-2xs z-10">
-              {activePanel === 'members' && (
+          {/* Right Sidebar Widgets: Members + Recent Activity */}
+          {projectId && (
+            <aside className="hidden lg:block">
+              <RightSideWidgets
+                projectId={projectId}
+                isOwner={isOwner}
+                members={members}
+                onOpenInvite={() => setOverlayPanel('full_members')}
+                onOpenFullActivity={() => setOverlayPanel('full_activity')}
+              />
+            </aside>
+          )}
+
+          {/* Drawer Overlay for Mobile or full detail view */}
+          {overlayPanel && projectId && (
+            <aside className="w-80 shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-hidden shadow-2xl z-30 absolute right-0 top-16 bottom-0">
+              {overlayPanel === 'full_members' && (
                 <MembersPanel
                   projectId={projectId}
                   isOwner={isOwner}
-                  onClose={() => setActivePanel(null)}
+                  onClose={() => setOverlayPanel(null)}
                 />
               )}
-              {activePanel === 'activity' && (
+              {overlayPanel === 'full_activity' && (
                 <ActivityPanel
                   projectId={projectId}
-                  onClose={() => setActivePanel(null)}
+                  onClose={() => setOverlayPanel(null)}
                 />
               )}
             </aside>

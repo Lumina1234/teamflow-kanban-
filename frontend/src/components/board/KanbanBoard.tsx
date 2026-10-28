@@ -12,7 +12,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { useState } from 'react'
 import { BoardColumn } from './BoardColumn'
-import type { Card, BoardColumn as Col } from '../../types'
+import type { Card, BoardColumn as Col, ProjectMember } from '../../types'
 import type { useBoard } from '../../hooks/useBoard'
 import { Plus, Loader2 } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -27,6 +27,7 @@ interface KanbanBoardProps {
   board: BoardHook
   isOwner: boolean
   searchQuery?: string
+  members?: ProjectMember[]
 }
 
 function CardDragOverlay({ card }: { card: Card | null }) {
@@ -41,7 +42,13 @@ function CardDragOverlay({ card }: { card: Card | null }) {
   )
 }
 
-export function KanbanBoard({ projectId, board, isOwner, searchQuery = '' }: KanbanBoardProps) {
+export function KanbanBoard({
+  projectId,
+  board,
+  isOwner,
+  searchQuery = '',
+  members = [],
+}: KanbanBoardProps) {
   const { columns, cardsByColumn, moveCard, columnsLoading } = board
   const [activeCard, setActiveCard] = useState<Card | null>(null)
   const [addingColumn, setAddingColumn] = useState(false)
@@ -149,10 +156,11 @@ export function KanbanBoard({ projectId, board, isOwner, searchQuery = '' }: Kan
             cards={filteredCardsByColumn[col.id] ?? []}
             projectId={projectId}
             isOwner={isOwner}
+            members={members}
           />
         ))}
 
-        {/* Add Column Button / Form */}
+        {/* Add Column Button / Form - Owner only */}
         {isOwner && (
           <div className="shrink-0">
             {addingColumn ? (

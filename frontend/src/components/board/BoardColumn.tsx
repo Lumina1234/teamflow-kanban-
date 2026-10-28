@@ -9,16 +9,17 @@ import { cardsApi } from '../../api/cards'
 import { columnsApi } from '../../api/columns'
 import { useToast } from '../../providers/ToastProvider'
 import { extractError } from '../../utils/errors'
-import type { BoardColumn as Col, Card } from '../../types'
+import type { BoardColumn as Col, Card, ProjectMember } from '../../types'
 
 interface BoardColumnProps {
   column: Col
   cards: Card[]
   projectId: string
   isOwner: boolean
+  members?: ProjectMember[]
 }
 
-export function BoardColumn({ column, cards, projectId, isOwner }: BoardColumnProps) {
+export function BoardColumn({ column, cards, projectId, isOwner, members = [] }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
   const [addingCard, setAddingCard] = useState(false)
   const [newCardTitle, setNewCardTitle] = useState('')
@@ -150,7 +151,7 @@ export function BoardColumn({ column, cards, projectId, isOwner }: BoardColumnPr
           </span>
         </div>
 
-        {/* Options Menu (Three dots) */}
+        {/* Options Menu (Three dots) - Owner only */}
         {isOwner && (
           <div className="relative shrink-0" ref={menuRef}>
             <button
@@ -195,6 +196,7 @@ export function BoardColumn({ column, cards, projectId, isOwner }: BoardColumnPr
             <BoardCard
               key={card.id}
               card={card}
+              members={members}
               onClick={() => setSelectedCard(card)}
             />
           ))}
@@ -207,53 +209,55 @@ export function BoardColumn({ column, cards, projectId, isOwner }: BoardColumnPr
         )}
       </div>
 
-      {/* Add card area */}
-      <div className="pt-1">
-        {addingCard ? (
-          <div className="bg-white rounded-2xl border border-gray-200 p-3 shadow-xs">
-            <textarea
-              className="w-full text-xs text-gray-900 resize-none border-0 outline-none placeholder-gray-400 font-medium"
-              rows={2}
-              placeholder="What needs to be done?…"
-              value={newCardTitle}
-              onChange={e => setNewCardTitle(e.target.value)}
-              autoFocus
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey && newCardTitle.trim()) {
-                  e.preventDefault()
-                  addCardMutation.mutate(newCardTitle.trim())
-                }
-                if (e.key === 'Escape') { setAddingCard(false); setNewCardTitle('') }
-              }}
-            />
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={() => newCardTitle.trim() && addCardMutation.mutate(newCardTitle.trim())}
-                disabled={!newCardTitle.trim() || addCardMutation.isPending}
-                className="btn-primary text-xs py-1.5 px-3 rounded-lg flex-1"
-              >
-                {addCardMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                Add Card
-              </button>
-              <button
-                onClick={() => { setAddingCard(false); setNewCardTitle('') }}
-                className="btn-secondary text-xs py-1.5 px-3 rounded-lg"
-              >
-                Cancel
-              </button>
+      {/* Add card area - Owner only */}
+      {isOwner && (
+        <div className="pt-1">
+          {addingCard ? (
+            <div className="bg-white rounded-2xl border border-gray-200 p-3 shadow-xs">
+              <textarea
+                className="w-full text-xs text-gray-900 resize-none border-0 outline-none placeholder-gray-400 font-medium"
+                rows={2}
+                placeholder="What needs to be done?…"
+                value={newCardTitle}
+                onChange={e => setNewCardTitle(e.target.value)}
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey && newCardTitle.trim()) {
+                    e.preventDefault()
+                    addCardMutation.mutate(newCardTitle.trim())
+                  }
+                  if (e.key === 'Escape') { setAddingCard(false); setNewCardTitle('') }
+                }}
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => newCardTitle.trim() && addCardMutation.mutate(newCardTitle.trim())}
+                  disabled={!newCardTitle.trim() || addCardMutation.isPending}
+                  className="btn-primary text-xs py-1.5 px-3 rounded-lg flex-1"
+                >
+                  {addCardMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                  Add Card
+                </button>
+                <button
+                  onClick={() => { setAddingCard(false); setNewCardTitle('') }}
+                  className="btn-secondary text-xs py-1.5 px-3 rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setAddingCard(true)}
-            className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 rounded-xl py-2.5 transition-colors cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" /> Add card
-          </button>
-        )}
-      </div>
+          ) : (
+            <button
+              onClick={() => setAddingCard(true)}
+              className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 rounded-xl py-2.5 transition-colors cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add card
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* Card Detail Modal */}
+      {/* Card Detail Modal (Members can view and comment) */}
       {selectedCard && (
         <CardDetailModal
           card={selectedCard}
