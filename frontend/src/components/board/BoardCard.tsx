@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Calendar, User } from 'lucide-react'
+import { Calendar, MoreVertical } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import { isOverdue, formatDateShort } from '../../utils/dates'
 import type { Card } from '../../types'
@@ -8,6 +8,19 @@ import type { Card } from '../../types'
 interface BoardCardProps {
   card: Card
   onClick: () => void
+}
+
+function getLabelStyle(name: string) {
+  const n = name.toLowerCase()
+  if (n === 'feature') return 'bg-blue-50 text-blue-600 border-blue-100'
+  if (n === 'backend') return 'bg-purple-50 text-purple-600 border-purple-100'
+  if (n.includes('ui')) return 'bg-pink-50 text-pink-600 border-pink-100'
+  if (n === 'export') return 'bg-emerald-50 text-emerald-600 border-emerald-100'
+  if (n.includes('real')) return 'bg-rose-50 text-rose-600 border-rose-100'
+  if (n.includes('attach')) return 'bg-sky-50 text-sky-600 border-sky-100'
+  if (n.includes('sec')) return 'bg-amber-50 text-amber-600 border-amber-100'
+  if (n.includes('bug')) return 'bg-red-50 text-red-600 border-red-100'
+  return 'bg-gray-100 text-gray-700 border-gray-200'
 }
 
 export function BoardCard({ card, onClick }: BoardCardProps) {
@@ -35,56 +48,80 @@ export function BoardCard({ card, onClick }: BoardCardProps) {
       {...listeners}
       onClick={onClick}
       className={cn(
-        'bg-white rounded-lg border border-gray-200 p-3 cursor-pointer select-none',
-        'hover:shadow-md hover:border-gray-300 transition-all',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
-        isDragging && 'opacity-40 shadow-lg'
+        'bg-white rounded-2xl border border-gray-100/90 p-4 cursor-pointer select-none',
+        'shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-gray-200 transition-all group',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+        isDragging && 'opacity-40 shadow-xl'
       )}
       tabIndex={0}
       role="button"
       aria-label={`Open card: ${card.title}`}
       onKeyDown={e => e.key === 'Enter' && onClick()}
     >
-      {/* Labels */}
-      {card.labels && card.labels.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {card.labels.map(label => (
-            <span
-              key={label.id}
-              className="inline-block h-1.5 w-8 rounded-full"
-              style={{ backgroundColor: label.color }}
-              title={label.name}
-            />
-          ))}
+      {/* Top row: Label pill and options button */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-wrap gap-1.5 items-center">
+          {card.labels && card.labels.length > 0 ? (
+            card.labels.map(label => (
+              <span
+                key={label.id}
+                className={cn(
+                  'text-[11px] font-semibold px-2.5 py-0.5 rounded-full border',
+                  getLabelStyle(label.name)
+                )}
+              >
+                {label.name}
+              </span>
+            ))
+          ) : (
+            <span />
+          )}
         </div>
-      )}
+        <button
+          onClick={e => {
+            e.stopPropagation()
+            onClick()
+          }}
+          className="text-gray-300 hover:text-gray-500 p-0.5 rounded transition-colors"
+          title="Card options"
+        >
+          <MoreVertical className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
       {/* Title */}
-      <p className="text-sm font-medium text-gray-900 leading-snug mb-2">
+      <h3 className="text-sm font-bold text-gray-900 leading-snug mb-1">
         {card.title}
-      </p>
+      </h3>
 
-      {/* Footer: assignee + due date */}
-      <div className="flex items-center justify-between mt-1">
-        {card.assignee_id ? (
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <User className="h-3 w-3" />
-            <span className="truncate max-w-[80px]">Assigned</span>
+      {/* Description */}
+      {card.description && (
+        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-3">
+          {card.description}
+        </p>
+      )}
+
+      {/* Footer: Assignee + Due Date */}
+      <div className="flex items-center justify-between pt-1 text-xs">
+        {/* Left: Avatar + "Assigned" */}
+        <div className="flex items-center gap-1.5 text-gray-400">
+          <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 font-bold text-[10px] flex items-center justify-center shrink-0">
+            DE
           </div>
-        ) : <span />}
+          <span className="text-xs text-gray-400 font-normal">Assigned</span>
+        </div>
 
+        {/* Right: Due Date */}
         {card.due_date && (
-          <span
+          <div
             className={cn(
-              'flex items-center gap-1 text-xs rounded px-1.5 py-0.5',
-              overdue
-                ? 'text-red-700 bg-red-50'
-                : 'text-gray-500 bg-gray-100'
+              'flex items-center gap-1 font-medium text-xs',
+              overdue ? 'text-red-500' : 'text-gray-400'
             )}
           >
-            <Calendar className="h-3 w-3" />
-            {formatDateShort(card.due_date)}
-          </span>
+            <Calendar className={cn('h-3.5 w-3.5', overdue ? 'text-red-500' : 'text-gray-400')} />
+            <span>{formatDateShort(card.due_date)}</span>
+          </div>
         )}
       </div>
     </div>

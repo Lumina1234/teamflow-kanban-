@@ -57,16 +57,16 @@ MEMBER_PASSWORD = "DemoMember123!"
 MEMBER_NAME = "Demo Member"
 
 PROJECT_NAME = "Demo Kanban Project"
-PROJECT_DESC = (
-    "A fully-featured demo project showcasing all Kanban board capabilities "
-    "including cards, labels, assignments, comments, and activity logging."
-)
+PROJECT_DESC = "A small team project to manage and track work"
 
 LABEL_DEFS = [
-    {"name": "Bug",     "color": "#ef4444"},  # red-500
-    {"name": "Feature", "color": "#3b82f6"},  # blue-500
-    {"name": "Urgent",  "color": "#f97316"},  # orange-500
-    {"name": "Design",  "color": "#a855f7"},  # purple-500
+    {"name": "Feature",     "color": "#3b82f6"},  # blue-500
+    {"name": "Backend",     "color": "#a855f7"},  # purple-500
+    {"name": "UI/UX",       "color": "#ec4899"},  # pink-500
+    {"name": "Export",      "color": "#10b981"},  # emerald-500
+    {"name": "Real-time",   "color": "#f43f5e"},  # rose-500
+    {"name": "Attachments", "color": "#0284c7"},  # sky-600
+    {"name": "Security",    "color": "#f59e0b"},  # amber-500
 ]
 
 NOW = datetime.now(timezone.utc)
@@ -114,6 +114,8 @@ async def get_or_create_project(
     result = await db.execute(select(Project).where(Project.name == name))
     project = result.scalar_one_or_none()
     if project:
+        project.description = description
+        await db.flush()
         return project, False
 
     project = Project(
@@ -233,6 +235,10 @@ async def get_or_create_card(
     )
     card = result.scalar_one_or_none()
     if card:
+        card.description = description
+        card.due_date = due_date
+        card.assignee_id = assignee.id if assignee else None
+        await db.flush()
         return card, False
 
     card = Card(
@@ -414,10 +420,13 @@ async def seed() -> None:
                 lbl, _ = await get_or_create_label(db, project, ldata["name"], ldata["color"])
                 label_map[ldata["name"]] = lbl
 
-            bug = label_map["Bug"]
             feature = label_map["Feature"]
-            urgent = label_map["Urgent"]
-            design = label_map["Design"]
+            backend_lbl = label_map["Backend"]
+            uiux = label_map["UI/UX"]
+            export = label_map["Export"]
+            realtime = label_map["Real-time"]
+            attachments = label_map["Attachments"]
+            security = label_map["Security"]
 
             # ------------------------------------------------------------------
             # Cards — To Do
@@ -427,55 +436,42 @@ async def seed() -> None:
             card_auth, _ = await get_or_create_card(
                 db, todo_col, project, owner,
                 title="Implement OAuth2 login",
-                description=(
-                    "Add Google and GitHub OAuth2 providers using authlib. "
-                    "Store OAuth identity alongside existing email/password accounts."
-                ),
+                description="Add OAuth2 authentication with Google and GitHub providers.",
                 position=1000.0,
-                assignee=member,
-                due_date=NOW + timedelta(days=14),
+                assignee=owner,
+                due_date=datetime(2026, 11, 11, tzinfo=timezone.utc),
             )
             await attach_label(db, card_auth, feature)
 
             card_notif, _ = await get_or_create_card(
                 db, todo_col, project, owner,
                 title="Build in-app notification centre",
-                description=(
-                    "Design a bell-icon notification centre that shows card assignments, "
-                    "mentions, and due-date reminders. Persist to DB and mark as read."
-                ),
+                description="Real-time notifications for mentions, assignments and updates.",
                 position=2000.0,
                 assignee=owner,
-                due_date=NOW + timedelta(days=21),
+                due_date=datetime(2026, 11, 18, tzinfo=timezone.utc),
             )
-            await attach_label(db, card_notif, feature)
-            await attach_label(db, card_notif, design)
+            await attach_label(db, card_notif, backend_lbl)
 
             card_mobile, _ = await get_or_create_card(
                 db, todo_col, project, owner,
                 title="Optimize touch drag-and-drop for mobile",
-                description=(
-                    "Current DnD library performs poorly on iOS Safari. "
-                    "Evaluate @dnd-kit/sortable and test on real devices."
-                ),
+                description="Improve mobile experience and touch gestures for card dragging.",
                 position=3000.0,
-                assignee=None,
-                due_date=NOW + timedelta(days=30),
+                assignee=owner,
+                due_date=datetime(2026, 11, 27, tzinfo=timezone.utc),
             )
-            await attach_label(db, card_mobile, design)
+            await attach_label(db, card_mobile, uiux)
 
             card_export, _ = await get_or_create_card(
                 db, todo_col, project, owner,
                 title="Activity log CSV/JSON export",
-                description=(
-                    "Add a download endpoint `GET /projects/{id}/activity/export` "
-                    "that streams the full activity log as CSV or JSON."
-                ),
+                description="Allow project activity to be exported in CSV and JSON format.",
                 position=4000.0,
-                assignee=member,
-                due_date=NOW + timedelta(days=10),
+                assignee=owner,
+                due_date=datetime(2026, 11, 7, tzinfo=timezone.utc),
             )
-            await attach_label(db, card_export, feature)
+            await attach_label(db, card_export, export)
 
             # ------------------------------------------------------------------
             # Cards — In Progress
@@ -485,43 +481,32 @@ async def seed() -> None:
             card_ws, _ = await get_or_create_card(
                 db, inprog_col, project, owner,
                 title="WebSocket real-time board sync",
-                description=(
-                    "Replace polling with WebSocket connections so all open board tabs "
-                    "update instantly when cards are moved or created."
-                ),
+                description="Synchronize board updates across all connected users using WebSocket.",
                 position=1000.0,
                 assignee=owner,
-                due_date=NOW + timedelta(days=5),
+                due_date=datetime(2026, 11, 9, tzinfo=timezone.utc),
             )
-            await attach_label(db, card_ws, feature)
-            await attach_label(db, card_ws, urgent)
+            await attach_label(db, card_ws, realtime)
 
             card_attach, _ = await get_or_create_card(
                 db, inprog_col, project, owner,
                 title="File attachments on cards",
-                description=(
-                    "Allow users to upload images and documents to cards. "
-                    "Store in S3-compatible bucket; show thumbnail previews."
-                ),
+                description="Allow users to upload and view attachments on cards.",
                 position=2000.0,
-                assignee=member,
-                due_date=NOW + timedelta(days=7),
+                assignee=owner,
+                due_date=datetime(2026, 11, 4, tzinfo=timezone.utc),
             )
-            await attach_label(db, card_attach, feature)
+            await attach_label(db, card_attach, attachments)
 
             card_ratelimit_bug, _ = await get_or_create_card(
                 db, inprog_col, project, owner,
                 title="Fix rate limiter bypass via X-Forwarded-For spoofing",
-                description=(
-                    "When behind a misconfigured proxy, clients can spoof their IP "
-                    "via X-Forwarded-For. Add trusted proxy configuration to slowapi."
-                ),
+                description="Patch security issue in rate limiter and validate forwarded headers.",
                 position=3000.0,
                 assignee=owner,
-                due_date=NOW + timedelta(days=2),
+                due_date=datetime(2026, 10, 30, tzinfo=timezone.utc),
             )
-            await attach_label(db, card_ratelimit_bug, bug)
-            await attach_label(db, card_ratelimit_bug, urgent)
+            await attach_label(db, card_ratelimit_bug, security)
 
             # ------------------------------------------------------------------
             # Cards — Done
@@ -531,42 +516,32 @@ async def seed() -> None:
             card_auth_session, _ = await get_or_create_card(
                 db, done_col, project, owner,
                 title="Server-side session management with Redis",
-                description=(
-                    "Implemented Redis-backed session store using itsdangerous. "
-                    "Sessions expire after configurable TTL; logout clears store entry."
-                ),
+                description="Implement secure session storage using Redis.",
                 position=1000.0,
                 assignee=owner,
-                due_date=NOW - timedelta(days=5),
+                due_date=datetime(2026, 10, 23, tzinfo=timezone.utc),
             )
-            await attach_label(db, card_auth_session, feature)
+            await attach_label(db, card_auth_session, backend_lbl)
 
             card_rbac, _ = await get_or_create_card(
                 db, done_col, project, owner,
                 title="Role-based access control (owner / member)",
-                description=(
-                    "Owner can manage members and project settings; "
-                    "members can interact with cards and comments only."
-                ),
+                description="Implement project-level permissions and middleware.",
                 position=2000.0,
-                assignee=member,
-                due_date=NOW - timedelta(days=10),
+                assignee=owner,
+                due_date=datetime(2026, 10, 18, tzinfo=timezone.utc),
             )
-            await attach_label(db, card_rbac, feature)
+            await attach_label(db, card_rbac, security)
 
             card_labels_feat, _ = await get_or_create_card(
                 db, done_col, project, owner,
                 title="Color-coded labels with multi-attach support",
-                description=(
-                    "Labels can be created per-project with a hex color. "
-                    "Multiple labels may be attached to a single card."
-                ),
+                description="Add multiple labels support with custom colors.",
                 position=3000.0,
-                assignee=member,
-                due_date=NOW - timedelta(days=3),
+                assignee=owner,
+                due_date=datetime(2026, 10, 25, tzinfo=timezone.utc),
             )
-            await attach_label(db, card_labels_feat, feature)
-            await attach_label(db, card_labels_feat, design)
+            await attach_label(db, card_labels_feat, uiux)
 
             # ------------------------------------------------------------------
             # Comments

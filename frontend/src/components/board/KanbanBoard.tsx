@@ -26,18 +26,22 @@ interface KanbanBoardProps {
   projectId: string
   board: BoardHook
   isOwner: boolean
+  searchQuery?: string
 }
 
 function CardDragOverlay({ card }: { card: Card | null }) {
   if (!card) return null
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 w-[260px] opacity-90 rotate-2">
-      <p className="text-sm font-medium text-gray-900 truncate">{card.title}</p>
+    <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-4 w-[290px] opacity-95 rotate-2 cursor-grabbing">
+      <p className="text-sm font-bold text-gray-900 truncate">{card.title}</p>
+      {card.description && (
+        <p className="text-xs text-gray-500 line-clamp-1 mt-1">{card.description}</p>
+      )}
     </div>
   )
 }
 
-export function KanbanBoard({ projectId, board, isOwner }: KanbanBoardProps) {
+export function KanbanBoard({ projectId, board, isOwner, searchQuery = '' }: KanbanBoardProps) {
   const { columns, cardsByColumn, moveCard, columnsLoading } = board
   const [activeCard, setActiveCard] = useState<Card | null>(null)
   const [addingColumn, setAddingColumn] = useState(false)
@@ -63,7 +67,6 @@ export function KanbanBoard({ projectId, board, isOwner }: KanbanBoardProps) {
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event
-    // Find the card being dragged
     for (const cards of Object.values(cardsByColumn)) {
       const found = cards.find(c => c.id === active.id)
       if (found) { setActiveCard(found); break }
@@ -78,7 +81,6 @@ export function KanbanBoard({ projectId, board, isOwner }: KanbanBoardProps) {
     const activeId = String(active.id)
     const overId = String(over.id)
 
-    // Determine source and target columns
     let sourceColumnId: string | undefined
     let targetColumnId: string | undefined
     let beforeCardId: string | undefined
@@ -87,7 +89,6 @@ export function KanbanBoard({ projectId, board, isOwner }: KanbanBoardProps) {
       if (cards.some(c => c.id === activeId)) sourceColumnId = colId
     }
 
-    // Over a card?
     for (const [colId, cards] of Object.entries(cardsByColumn)) {
       const idx = cards.findIndex(c => c.id === overId)
       if (idx !== -1) {
@@ -97,7 +98,6 @@ export function KanbanBoard({ projectId, board, isOwner }: KanbanBoardProps) {
       }
     }
 
-    // Over a column (dropped on empty area)?
     if (!targetColumnId && columns.some(c => c.id === overId)) {
       targetColumnId = overId
       beforeCardId = undefined
@@ -110,10 +110,26 @@ export function KanbanBoard({ projectId, board, isOwner }: KanbanBoardProps) {
     } catch { /* error already shown by hook */ }
   }
 
+  // Filter cards by search query if provided
+  const query = searchQuery.trim().toLowerCase()
+  const filteredCardsByColumn: Record<string, Card[]> = {}
+
+  for (const [colId, cards] of Object.entries(cardsByColumn)) {
+    if (!query) {
+      filteredCardsByColumn[colId] = cards
+    } else {
+      filteredCardsByColumn[colId] = cards.filter(c =>
+        c.title.toLowerCase().includes(query) ||
+        (c.description && c.description.toLowerCase().includes(query)) ||
+        (c.labels && c.labels.some(l => l.name.toLowerCase().includes(query)))
+      )
+    }
+  }
+
   if (columnsLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     )
   }
@@ -125,25 +141,25 @@ export function KanbanBoard({ projectId, board, isOwner }: KanbanBoardProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 p-4 h-full items-start">
+      <div className="flex gap-5 p-6 h-full items-start overflow-x-auto">
         {columns.map((col: Col) => (
           <BoardColumn
             key={col.id}
             column={col}
-            cards={cardsByColumn[col.id] ?? []}
+            cards={filteredCardsByColumn[col.id] ?? []}
             projectId={projectId}
             isOwner={isOwner}
           />
         ))}
 
-        {/* Add Column */}
+        {/* Add Column Button / Form */}
         {isOwner && (
-          <div className="shrink-0 w-[var(--board-column-width)]">
+          <div className="shrink-0">
             {addingColumn ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-3">
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 w-[280px] shadow-sm">
                 <input
-                  className="input mb-2 text-sm"
-                  placeholder="Column name"
+                  className="w-full text-xs font-semibold text-gray-800 border border-gray-200 rounded-xl px-3 py-2 mb-2 outline-none focus:border-blue-500"
+                  placeholder="Column name…"
                   value={newColName}
                   onChange={e => setNewColName(e.target.value)}
                   autoFocus
@@ -156,11 +172,15 @@ export function KanbanBoard({ projectId, board, isOwner }: KanbanBoardProps) {
                   <button
                     onClick={() => newColName.trim() && createColMutation.mutate(newColName.trim())}
                     disabled={!newColName.trim() || createColMutation.isPending}
-                    className="btn-primary text-xs flex-1"
+                    className="btn-primary text-xs py-1.5 px-3 rounded-lg flex-1"
                   >
-                    {createColMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Add'}
+                    {createColMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    Add Column
                   </button>
-                  <button onClick={() => { setAddingColumn(false); setNewColName('') }} className="btn-secondary text-xs">
+                  <button
+                    onClick={() => { setAddingColumn(false); setNewColName('') }}
+                    className="btn-secondary text-xs py-1.5 px-3 rounded-lg"
+                  >
                     Cancel
                   </button>
                 </div>
@@ -168,7 +188,7 @@ export function KanbanBoard({ projectId, board, isOwner }: KanbanBoardProps) {
             ) : (
               <button
                 onClick={() => setAddingColumn(true)}
-                className="w-full flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 bg-gray-200/50 hover:bg-gray-200 rounded-xl px-4 py-3 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 hover:text-blue-600 bg-white hover:bg-gray-50 border border-gray-200/80 rounded-2xl px-4 py-2.5 shadow-xs transition-all cursor-pointer h-fit"
               >
                 <Plus className="h-4 w-4" /> Add column
               </button>
