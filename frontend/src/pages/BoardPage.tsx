@@ -28,6 +28,10 @@ import { BoardFilters } from '../components/board/BoardFilters'
 import { RightSideWidgets } from '../components/board/RightSideWidgets'
 import { MembersPanel } from '../components/board/MembersPanel'
 import { ActivityPanel } from '../components/board/ActivityPanel'
+import { CalendarModal } from '../components/board/CalendarModal'
+import { UserSettingsModal } from '../components/board/UserSettingsModal'
+import { CardDetailModal } from '../components/board/CardDetailModal'
+import type { Card } from '../types'
 
 type OverlayPanel = 'full_members' | 'full_activity' | null
 
@@ -40,10 +44,13 @@ export default function BoardPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isStarred, setIsStarred] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [selectedCardForModal, setSelectedCardForModal] = useState<Card | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const moreMenuRef = useRef<HTMLDivElement>(null)
 
-  const { filters, setAssignee, setLabel, setOverdue, clearFilters, activeCount } = useFilters()
+  const { filters, setAssignee, setLabel, setOverdue, setTeam, clearFilters, activeCount } = useFilters()
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -146,26 +153,38 @@ export default function BoardPage() {
 
             {/* Calendar */}
             <button
-              onClick={() => {}}
-              className="flex flex-col items-center gap-1 py-2 px-1 w-full rounded-2xl text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
-              title="Calendar"
+              onClick={() => setShowCalendar(true)}
+              className={`flex flex-col items-center gap-1 py-2 px-1 w-full rounded-2xl transition-all cursor-pointer ${
+                showCalendar
+                  ? 'text-blue-600 bg-blue-50 font-bold shadow-2xs'
+                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+              title="Calendar & Deadlines"
             >
               <div className="w-10 h-8 flex items-center justify-center">
                 <Calendar className="h-5 w-5" />
               </div>
-              <span className="text-[10px] font-medium text-gray-400">Calendar</span>
+              <span className={`text-[10px] font-medium ${showCalendar ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
+                Calendar
+              </span>
             </button>
 
             {/* Settings */}
             <button
-              onClick={() => {}}
-              className="flex flex-col items-center gap-1 py-2 px-1 w-full rounded-2xl text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
-              title="Settings"
+              onClick={() => setShowSettings(true)}
+              className={`flex flex-col items-center gap-1 py-2 px-1 w-full rounded-2xl transition-all cursor-pointer ${
+                showSettings
+                  ? 'text-blue-600 bg-blue-50 font-bold shadow-2xs'
+                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+              title="User Profile & Settings"
             >
               <div className="w-10 h-8 flex items-center justify-center">
                 <Settings className="h-5 w-5" />
               </div>
-              <span className="text-[10px] font-medium text-gray-400">Settings</span>
+              <span className={`text-[10px] font-medium ${showSettings ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
+                Settings
+              </span>
             </button>
           </nav>
         </div>
@@ -207,13 +226,25 @@ export default function BoardPage() {
 
               <div className="flex items-center gap-2 mt-0.5">
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
                     isOwner
                       ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                      : 'bg-[#0284c7] text-white'
+                      : project?.my_job_role === 'hr'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : project?.my_job_role === 'designer'
+                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                      : 'bg-blue-50 text-blue-700 border border-blue-200'
                   }`}
                 >
-                  {isOwner ? '👑 Owner' : 'Member'}
+                  {isOwner
+                    ? '👑 Project Lead · Owner'
+                    : project?.my_job_role === 'designer'
+                    ? 'UI/UX Design · Designer'
+                    : project?.my_job_role === 'hr'
+                    ? 'HR & People Ops · Manager'
+                    : project?.my_team_name
+                    ? `${project.my_team_name} · Member`
+                    : 'Engineering · Member'}
                 </span>
                 <p className="text-xs text-gray-400 truncate">
                   {project?.description ?? 'A small team project to manage and track work'}
@@ -328,6 +359,13 @@ export default function BoardPage() {
                   All Projects
                 </button>
                 <button
+                  onClick={() => { setMoreMenuOpen(false); setShowSettings(true) }}
+                  className="w-full px-3 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Settings className="h-3.5 w-3.5 text-gray-400" />
+                  Profile & Settings
+                </button>
+                <button
                   onClick={() => { setMoreMenuOpen(false); logout() }}
                   className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
                 >
@@ -382,6 +420,7 @@ export default function BoardPage() {
             onAssignee={setAssignee}
             onLabel={setLabel}
             onOverdue={setOverdue}
+            onTeam={setTeam}
             onClear={clearFilters}
           />
         )}
@@ -431,6 +470,33 @@ export default function BoardPage() {
                 />
               )}
             </aside>
+          )}
+
+          {/* Schedule & Calendar Modal */}
+          {showCalendar && (
+            <CalendarModal
+              cards={allCards}
+              onSelectCard={c => setSelectedCardForModal(c)}
+              onClose={() => setShowCalendar(false)}
+            />
+          )}
+
+          {/* User Profile & Settings Modal */}
+          {showSettings && (
+            <UserSettingsModal
+              project={project}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
+
+          {/* Card Detail Modal (when opening a task from Calendar) */}
+          {selectedCardForModal && projectId && (
+            <CardDetailModal
+              card={selectedCardForModal}
+              projectId={projectId}
+              isOwner={isOwner}
+              onClose={() => setSelectedCardForModal(null)}
+            />
           )}
         </div>
       </div>

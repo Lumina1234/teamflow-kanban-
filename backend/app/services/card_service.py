@@ -35,6 +35,8 @@ async def create_card(
     created_by: uuid.UUID,
     assignee_id: uuid.UUID | None = None,
     due_date: date | None = None,
+    owner_team_id: uuid.UUID | None = None,
+    visibility: str = "team_only",
 ) -> Card:
     max_result = await db.execute(
         select(func.max(Card.position)).where(Card.column_id == column_id)
@@ -50,6 +52,8 @@ async def create_card(
         title=title,
         description=description,
         assignee_id=assignee_id,
+        owner_team_id=owner_team_id,
+        visibility=visibility,
         due_date=due_date,
         position=new_pos,
         version=1,
@@ -67,7 +71,7 @@ async def create_card(
         event_type="card.created",
         resource_type="card",
         resource_id=card.id,
-        details={"title": title, "column_id": str(column_id)},
+        details={"title": title, "column_id": str(column_id), "owner_team_id": str(owner_team_id) if owner_team_id else None},
         created_at=now,
     )
     db.add(event)
@@ -210,10 +214,19 @@ async def get_cards_for_project(
     assignee_id: uuid.UUID | None = None,
     label_id: uuid.UUID | None = None,
     overdue: bool | None = None,
+    team_id: uuid.UUID | None = None,
+    search: str | None = None,
 ) -> list[Card]:
     q = select(Card).where(Card.project_id == project_id)
     if assignee_id is not None:
         q = q.where(Card.assignee_id == assignee_id)
+    if team_id is not None:
+        q = q.where(Card.owner_team_id == team_id)
+    if search:
+        search_term = f"%{search}%"
+        q = q.where(
+            Card.title.ilike(search_term) | Card.description.ilike(search_term)
+        )
     if overdue is True:
         from app.models.column import Column
         today = datetime.now(timezone.utc).date()

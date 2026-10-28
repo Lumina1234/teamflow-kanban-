@@ -71,10 +71,29 @@ export function BoardCard({ card, onClick, members = [] }: BoardCardProps) {
       aria-label={`Open card: ${card.title}`}
       onKeyDown={e => e.key === 'Enter' && onClick()}
     >
-      {/* Top row: Label pills and options button */}
-      <div className="flex items-center justify-between mb-2">
+      {/* Top row: Label pills, Team badge, and options button */}
+      <div className="flex items-center justify-between mb-2 gap-1.5 flex-wrap">
         <div className="flex flex-wrap gap-1.5 items-center">
-          {card.labels && card.labels.length > 0 ? (
+          {/* Responsible Team Badge */}
+          {card.team_name && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+              {card.team_name}
+            </span>
+          )}
+
+          {/* Visibility / Shared Pill */}
+          {card.visibility === 'hr_only' && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+              🔒 HR Only
+            </span>
+          )}
+          {card.shared_teams && card.shared_teams.length > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+              Shared: {card.shared_teams.join(', ')}
+            </span>
+          )}
+
+          {card.labels && card.labels.length > 0 && (
             card.labels.map(label => (
               <span
                 key={label.id}
@@ -86,8 +105,6 @@ export function BoardCard({ card, onClick, members = [] }: BoardCardProps) {
                 {label.name}
               </span>
             ))
-          ) : (
-            <span />
           )}
         </div>
         <button
@@ -95,7 +112,7 @@ export function BoardCard({ card, onClick, members = [] }: BoardCardProps) {
             e.stopPropagation()
             onClick()
           }}
-          className="text-gray-300 hover:text-gray-500 p-0.5 rounded transition-colors"
+          className="text-gray-300 hover:text-gray-500 p-0.5 rounded transition-colors ml-auto"
           title="Card options"
         >
           <MoreVertical className="h-3.5 w-3.5" />

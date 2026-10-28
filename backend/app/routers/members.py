@@ -36,6 +36,11 @@ async def list_members(
         user_result = await db.execute(select(User).where(User.id == m.user_id))
         user = user_result.scalar_one_or_none()
         mo = MemberOut.model_validate(m)
+        mo.team_id = m.team_id
+        mo.job_role = m.job_role
+        if m.team:
+            mo.team_slug = m.team.slug
+            mo.team_name = m.team.name
         if user:
             mo.email = user.email
             mo.name = user.name

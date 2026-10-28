@@ -26,6 +26,12 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128)
 
 
+class UpdateProfileRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=100)
+    current_password: str | None = None
+    new_password: str | None = Field(None, min_length=8, max_length=128)
+
+
 class UserOut(BaseModel):
     model_config = {"from_attributes": True}
 

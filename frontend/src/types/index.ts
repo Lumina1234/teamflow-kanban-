@@ -6,6 +6,26 @@ export interface User {
   created_at: string
 }
 
+export interface Team {
+  id: string
+  project_id: string
+  name: string
+  slug: string
+  created_at: string
+}
+
+export interface TaskAccessGrant {
+  id: string
+  card_id: string
+  team_id?: string
+  user_id?: string
+  permission: 'view' | 'edit'
+  granted_by: string
+  created_at: string
+  team_name?: string
+  team_slug?: string
+}
+
 export interface Project {
   id: string
   name: string
@@ -14,6 +34,10 @@ export interface Project {
   created_at: string
   updated_at: string
   my_role?: 'owner' | 'member'
+  my_job_role?: string
+  my_team_id?: string
+  my_team_slug?: string
+  my_team_name?: string
 }
 
 export interface ProjectMember {
@@ -22,6 +46,10 @@ export interface ProjectMember {
   project_id: string
   role: 'owner' | 'member'
   joined_at: string
+  team_id?: string
+  job_role?: string
+  team_slug?: string
+  team_name?: string
   // Denormalized user fields from backend
   email?: string
   name?: string
@@ -65,6 +93,12 @@ export interface Card {
   description?: string
   assignee_id?: string
   assignee?: User
+  owner_team_id?: string
+  visibility: 'team_only' | 'selected_teams' | 'hr_only'
+  team_slug?: string
+  team_name?: string
+  shared_teams?: string[]
+  access_grants?: TaskAccessGrant[]
   due_date?: string
   position: number
   version: number
@@ -108,4 +142,5 @@ export interface BoardFilters {
   assignee_id?: string
   label_id?: string
   overdue?: boolean
+  team_id?: string
 }

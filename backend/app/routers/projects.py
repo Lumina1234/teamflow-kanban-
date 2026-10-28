@@ -34,7 +34,13 @@ async def list_projects(
         )
         membership = member_result.scalar_one_or_none()
         out = ProjectOut.model_validate(p)
-        out.my_role = membership.role.value if membership else None
+        if membership:
+            out.my_role = membership.role.value
+            out.my_job_role = membership.job_role
+            out.my_team_id = membership.team_id
+            if membership.team:
+                out.my_team_slug = membership.team.slug
+                out.my_team_name = membership.team.name
         results.append(out)
     return results
 
@@ -51,6 +57,7 @@ async def create_project(
     await db.commit()
     out = ProjectOut.model_validate(project)
     out.my_role = "owner"
+    out.my_job_role = "manager"
     return out
 
 
@@ -61,6 +68,11 @@ async def get_project(
     project, membership = member_data
     out = ProjectOut.model_validate(project)
     out.my_role = membership.role.value
+    out.my_job_role = membership.job_role
+    out.my_team_id = membership.team_id
+    if membership.team:
+        out.my_team_slug = membership.team.slug
+        out.my_team_name = membership.team.name
     return out
 
 

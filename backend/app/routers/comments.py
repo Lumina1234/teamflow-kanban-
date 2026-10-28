@@ -14,6 +14,7 @@ from app.models.comment import Comment
 from app.models.activity import ActivityEvent
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentOut, CommentUpdate
+from app.services import task_auth_service
 
 router = APIRouter(
     prefix="/api/projects/{project_id}/cards/{card_id}/comments", tags=["comments"]
@@ -35,9 +36,14 @@ async def list_comments(
     project_id: uuid.UUID,
     card_id: uuid.UUID,
     member_data: tuple = Depends(get_project_member),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _get_card(db, card_id, project_id)
+    card = await _get_card(db, card_id, project_id)
+    project, membership = member_data
+    if not task_auth_service.can_view_card(card, membership, current_user.id):
+        raise HTTPException(status_code=404, detail="Card not found")
+
     result = await db.execute(
         select(Comment)
         .where(Comment.card_id == card_id, Comment.project_id == project_id)
@@ -56,6 +62,12 @@ async def create_comment(
     db: AsyncSession = Depends(get_db),
 ):
     card = await _get_card(db, card_id, project_id)
+    project, membership = member_data
+    if not task_auth_service.can_view_card(card, membership, current_user.id):
+        raise HTTPException(status_code=404, detail="Card not found")
+    if not task_auth_service.can_comment_card(card, membership, current_user.id):
+        raise HTTPException(status_code=403, detail="Forbidden: You cannot comment on this card")
+
     now = datetime.now(timezone.utc)
     comment = Comment(
         id=uuid.uuid4(),

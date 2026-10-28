@@ -9,7 +9,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from app.config import settings
-from app.routers import auth, projects, members, columns, cards, labels, comments, activity, websocket
+from app.routers import auth, projects, members, columns, cards, labels, comments, activity, websocket, teams
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -82,6 +82,7 @@ app.include_router(labels.router)
 app.include_router(comments.router)
 app.include_router(activity.router)
 app.include_router(websocket.router)
+app.include_router(teams.router)
 
 
 # ── Health check & Docs redirects ──────────────────────────────────────────────

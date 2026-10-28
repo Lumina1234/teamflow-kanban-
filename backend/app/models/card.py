@@ -12,6 +12,8 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.label import Label
+    from app.models.team import Team
+    from app.models.task_access_grant import TaskAccessGrant
 
 
 class Card(Base):
@@ -37,6 +39,12 @@ class Card(Base):
     assignee_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
+    owner_team_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("teams.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    visibility: Mapped[str] = mapped_column(
+        String(30), default="team_only", nullable=False
+    )  # 'team_only', 'selected_teams', 'hr_only'
     due_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     position: Mapped[float] = mapped_column(Numeric(30, 12), nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
@@ -53,11 +61,19 @@ class Card(Base):
         nullable=False,
     )
 
-    # Many-to-many relationship to labels (lazy="selectin" loads them automatically)
+    # Many-to-many relationship to labels
     labels: Mapped[List["Label"]] = relationship(
         "Label",
         secondary="card_labels",
         lazy="selectin",
+    )
+
+    # Team ownership & access grants
+    owner_team: Mapped["Team | None"] = relationship(
+        "Team", back_populates="cards", foreign_keys=[owner_team_id], lazy="selectin"
+    )
+    access_grants: Mapped[List["TaskAccessGrant"]] = relationship(
+        "TaskAccessGrant", back_populates="card", cascade="all, delete-orphan", lazy="selectin"
     )
 
     __table_args__ = (

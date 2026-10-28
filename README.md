@@ -6,23 +6,43 @@
 
 ---
 
+## Demo Accounts & Team Roles
+
+The application comes pre-seeded with 8 distinct team roles enforcing strict OWASP least-privilege task visibility:
+
+| Role | Name | Email | Password | Permissions & Visibility |
+|---|---|---|---|---|
+| **Project Lead / Manager** | Alex Manager | `manager@kanban.dev` | `Manager123!` | Oversees all teams; full CRUD, drag-and-drop, column management, and cross-team task sharing |
+| **UI/UX Designer** | Sam Designer | `designer@kanban.dev` | `Designer123!` | Cross-team read inspection across all engineering tasks; full edit for Design tasks; comment collaboration |
+| **Frontend Engineer** | Fiona Frontend | `frontend@kanban.dev` | `Frontend123!` | Private Frontend tasks + explicitly shared tasks only; comments and moves permitted tasks |
+| **Backend Engineer** | Ben Backend | `backend@kanban.dev` | `Backend123!` | Private Backend tasks + explicitly shared tasks only; comments and moves permitted tasks |
+| **Database & Real-Time** | Dana Database | `db_engineer@kanban.dev` | `DbEngineer123!` | Private Database & Real-Time tasks + explicitly shared tasks only |
+| **Security Engineer** | Sean Security | `security@kanban.dev` | `Security123!` | Private Security tasks + explicitly shared tasks only |
+| **QA & DevOps** | Devon DevOps | `devops@kanban.dev` | `Devops123!` | Private QA, test & deployment tasks + explicitly shared tasks only |
+| **HR Manager** | Hannah HR | `hr_manager@kanban.dev` | `HrManager123!` | Strictly HR-only tasks & directory; 0 visibility into engineering tasks, comments, or activity |
+
+*Legacy demo accounts also available:*
+- `demo_owner@kanban.dev` / `DemoOwner123!`
+- `demo_member@kanban.dev` / `DemoMember123!`
+
+---
+
 ## Features
 
 1. **User Registration & Login** — Email/password authentication with secure session cookies
 2. **Session Management** — Redis-backed server-side sessions with configurable expiry
-3. **Project Creation** — Create named projects with descriptions; owner assigned automatically
-4. **Member Invitation** — Invite users by email via tokenized invite links; roles assigned on accept
-5. **Role-Based Access Control** — `owner` and `member` roles; owners manage membership, members interact with cards
-6. **Kanban Columns** — Default columns: To Do, In Progress, Done; custom columns supported
-7. **Card Management** — Create, update, move cards across columns with drag-and-drop ordering
-8. **Card Assignment** — Assign cards to project members; filter by assignee
-9. **Due Dates** — Set and track due dates on cards; overdue highlighting
-10. **Labels / Tags** — Create color-coded labels; attach multiple labels to cards
-11. **Comments** — Threaded comments on cards; edit and delete own comments
-12. **Activity Log** — Immutable audit trail per project: card moves, assignments, comments, membership changes
-13. **Password Reset** — Secure token-based password reset flow (email or console in dev)
-14. **Pagination & Filtering** — Server-side pagination on cards and activity; filter by label, assignee, column
-15. **Soft Delete & Archival** — Archive cards without permanent deletion; restore or hard-delete as owner
+3. **Team-Based Task Visibility** — OWASP least privilege: Private tasks per team, explicitly shared tasks, and HR-only tasks enforced at DB query level
+4. **Anti-Enumeration Security** — Direct ID requests to inaccessible tasks return 404 Not Found to prevent probing
+5. **Project Creation & Isolation** — Strict multi-tenant project isolation; users cannot access unauthorized projects
+6. **Owner/Manager Controls** — Managers manage members, columns, task creation, and team sharing grants
+7. **Cross-Team Task Sharing** — Managers can explicitly share private tasks with other teams via `task_access_grants`
+8. **UI/UX Designer Cross-Team Inspection** — Designers inspect all engineering tasks in read-only mode and collaborate via comments
+9. **Kanban Columns & Fractional Positions** — Server-calculated fractional positions (`midpoint`) surviving refresh with auto-rebalancing
+10. **Card Management & Assignment** — Assign cards to project members; filter by team, assignee, label, overdue
+11. **Color-Coded Labels** — Multi-label support with custom colors
+12. **Threaded Comments** — Card comments with card visibility enforcement
+13. **Activity Audit Trail** — Immutable audit log filtered to only show events on accessible cards
+14. **Real-time WebSockets** — Authenticated live updates for columns, cards, and reordering
 
 ---
 

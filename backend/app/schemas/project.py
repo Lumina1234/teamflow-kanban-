@@ -26,6 +26,10 @@ class ProjectOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     my_role: str | None = None  # Populated by the router
+    my_job_role: str | None = None
+    my_team_id: uuid.UUID | None = None
+    my_team_slug: str | None = None
+    my_team_name: str | None = None
 
 
 class MemberOut(BaseModel):
@@ -35,6 +39,10 @@ class MemberOut(BaseModel):
     project_id: uuid.UUID
     user_id: uuid.UUID
     role: str
+    team_id: uuid.UUID | None = None
+    job_role: str | None = None
+    team_slug: str | None = None
+    team_name: str | None = None
     joined_at: datetime
     # Denormalized user fields (set manually)
     email: str | None = None

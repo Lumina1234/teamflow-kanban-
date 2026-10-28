@@ -16,9 +16,13 @@ export function useFilters() {
     setFilters(f => ({ ...f, overdue }))
   }, [])
 
+  const setTeam = useCallback((team_id: string | undefined) => {
+    setFilters(f => ({ ...f, team_id }))
+  }, [])
+
   const clearFilters = useCallback(() => setFilters({}), [])
 
   const activeCount = Object.values(filters).filter(v => v !== undefined && v !== false).length
 
-  return { filters, setAssignee, setLabel, setOverdue, clearFilters, activeCount }
+  return { filters, setAssignee, setLabel, setOverdue, setTeam, clearFilters, activeCount }
 }
